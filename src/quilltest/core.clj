@@ -7,7 +7,8 @@
 
 
 (def params
-  {:size [800 600]})
+  {:size [800 600]
+   :fps 30})
 
 (def state-atom (atom {:pos [5 6]
                        :velocity [0 0]
@@ -50,7 +51,7 @@
 
 (defn setup []
   (background 255)
-  (frame-rate 60)
+  (frame-rate (:fps params))
   (stroke-weight 2)
   (smooth)
   (no-loop))
@@ -63,9 +64,6 @@
     ;(line x1 y1 x2 y2)
     (ellipse x y 20 20)
     (no-loop)))
-
-(defmacro f [& body]
-  `(fn [] ~body))
 
 (defn int-key-code [^java.awt.event.KeyEvent event]
   (.getKeyCode event))
@@ -89,8 +87,8 @@
 ;       (println (str "Released " (int-key-code event)))
        (assoc state :keys keys)))))
 
-(defmacro with-applet [& body]
-  `(binding [quil.dynamics/*applet* mysketch]
+(defmacro with-applet [name & body]
+  `(binding [quil.dynamics/*applet* ~name]
     (do ~@body)))
 
 
@@ -106,7 +104,7 @@
      (keyPressed [this event] (on-key-press event))
      (keyReleased [this event] (on-key-release event))
      (keyTyped [this event] nil)))
-  (with-applet
+  (with-applet mysketch
     (doseq [x (range)]
       (swap! state-atom #(move %))
       (start-loop)
