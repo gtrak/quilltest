@@ -5,6 +5,9 @@
 (def dobreak true)
 (def dobreak false)
 
+(defn nanotime []
+  (System/nanoTime))
+
 (defn game-loop [update-fps loop-fn exit?-fn]
   (let [mutex-refresh (java.util.concurrent.Semaphore. 0)
         mutex-refreshing (java.util.concurrent.Semaphore. 1)
@@ -15,12 +18,15 @@
                    (do (.release mutex-refreshing)
                        (.release mutex-refresh)))))]
     (.scheduleAtFixedRate timer task (long 0) (long (/ 1000 update-fps)))
-    (loop []
-      (.acquire mutex-refresh)
-      (.acquire mutex-refreshing)
-      (loop-fn)
-      (.release mutex-refreshing)
-      (when-not (exit?-fn) (recur)))))
+    (loop [old-time (nanotime)]
+      (let [new-time (do (.acquire mutex-refresh)
+                         (.acquire mutex-refreshing)
+                         (nanotime))
+            ticks (long (- new-time old-time))]
+        (loop-fn ticks)
+        (.release mutex-refreshing)
+        (when-not (exit?-fn)
+          (recur new-time))))))
 
 (defmacro with-applet [name & body]
   `(binding [quil.dynamics/*applet* ~name]

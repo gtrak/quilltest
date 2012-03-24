@@ -5,11 +5,11 @@
   (:require [quil.core :as q])
   (:gen-class))
 
-
+;(-main)
 (def params
   {:size [800 600]
-   :fps 60
-   :update-fps 600})
+   :fps 61
+   :update-fps 557})
 
 (def state-atom (atom {:pos [5 6]
                        :velocity [0 0]}))
@@ -48,22 +48,28 @@
         vy (if (going-out? y max-y vy) (- vy) vy)]
     [vx vy]))
 
-(def step 0.001)
+(def scale 0.000001)
+(def a 0.001)
 
-(defn accelerate [vx vy]
-  (let [pressed @keys-atom
+(defn accelerate [t vx vy]
+  ;; v = a*t + v0
+  (let [step (* a t)
+        pressed @keys-atom
         vx (if (pressed :a) (- vx step) vx)
         vx (if (pressed :d) (+ vx step) vx)
         vy (if (pressed :w) (- vy step) vy)
         vy (if (pressed :s) (+ vy step) vy)]
     [vx vy]))
 
-(defn move [state]
-  (let [[vx vy] (bounds-check state)
-        [vx vy] (accelerate vx vy)
+(defn move [state ticks]
+  (let [t (* scale ticks)
+        [vx vy] (bounds-check state)
+        [vx vy] (accelerate t vx vy)
+        [vxt vyt] [(* vx t) (* vy t)]
         [x y] (:pos state)]
     (assoc state
-      :pos [(+ x vx) (+ y vy)]
+      ; x = vt + x0
+      :pos [(+ x vxt) (+ y vyt)]
       :velocity [vx vy])))
 
 (defn setup []
@@ -87,8 +93,8 @@
                      :size (:size params)}
                     {:on-key-press (k/gen-on-keypress keys-atom)
                      :on-key-release (k/gen-on-keyrelease keys-atom)}
-                    600
-                    (fn [] (swap! state-atom #(move %)))
+                    (:update-fps params)
+                    (fn [ticks] (swap! state-atom #(move % ticks)))
                     #(when (:q @keys-atom) true)))
 
 ;(-main)
