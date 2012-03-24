@@ -23,22 +23,15 @@
    keys, the value of which will be a set of keywords."
   [keys-atom]
   (fn [event]
-    (swap!
-     keys-atom
-     (fn [keys]
-       (let [int-key (int-key-code event)]
-         (when-let [key (int->key int-key)]
-           (if (nil? keys) #{key} (conj keys key))))))))
+    (when-let [key (int->key (int-key-code event))]
+      (swap! keys-atom #(if (nil? %) #{key} (conj % key))))))
 
 (defn gen-on-keyrelease
   "Creates a function that updates an atom of currently pressed
    keys when one is released"
   [keys-atom]
   (fn [event]
-    (swap!
-     keys-atom
-     (fn [keys]
-       (let [new (disj keys (int->key (int-key-code event)))]
-         (if (nil? new)
-           #{}
-           new))))))
+    (when-let [key (int->key (int-key-code event))]
+      (swap!
+       keys-atom
+       #(if-let [new (disj % key)] new #{})))))
