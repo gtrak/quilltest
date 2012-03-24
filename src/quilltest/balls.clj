@@ -1,17 +1,38 @@
 (ns quilltest.balls
   (:require [quilltest.core :as qcore]
-            [quilltest.keys :as k])
+            [quilltest.keys :as k]
+            [quilltest.scene :as scene])
   (:require [quil.core :as q])
   (:gen-class))
 
 
 (def params
   {:size [800 600]
-   :fps 50
+   :fps 60
    :update-fps 600})
 
 (def state-atom (atom {:pos [5 6]
                        :velocity [0 0]}))
+
+(def scene-graph
+  (atom (let [children [(scene/->GraphNode
+                         nil
+                         (fn [[x y]]
+                           (q/ellipse (- x 20) y 20 20)))
+                        #_(scene/->GraphNode
+                           nil
+                           (fn [[x y]]
+                             (q/ellipse x (+ y 20) 20 20)))
+                        (scene/->GraphNode
+                         nil
+                         (fn [[x y]]
+                           (q/ellipse x (- y 20) 20 20)))]
+              guy (scene/->GraphNode
+                   children
+                   (fn [[x y]]
+                     (q/ellipse (+ x 20) y 20 20)))]
+          guy)))
+
 
 (def keys-atom (atom #{}))
 
@@ -30,11 +51,11 @@
 (def step 0.001)
 
 (defn accelerate [vx vy]
-  (let [keys @keys-atom
-        vx (if (keys :a) (- vx step) vx)
-        vx (if (keys :d) (+ vx step) vx)
-        vy (if (keys :w) (- vy step) vy)
-        vy (if (keys :s) (+ vy step) vy)]
+  (let [pressed @keys-atom
+        vx (if (pressed :a) (- vx step) vx)
+        vx (if (pressed :d) (+ vx step) vx)
+        vy (if (pressed :w) (- vy step) vy)
+        vy (if (pressed :s) (+ vy step) vy)]
     [vx vy]))
 
 (defn move [state]
@@ -57,16 +78,17 @@
     (q/stroke 0)
     ;(println x1 y1 x2 y2)
     ;(line x1 y1 x2 y2)
-    (q/ellipse x y 20 20)))
+    (scene/draw @scene-graph [x y])))
 
 (defn -main []
   (qcore/run-sketch {:title "Balls"
-                     :setup setup
-                     :draw draw
+                     :setup #'setup
+                     :draw #'draw
                      :size (:size params)}
                     {:on-key-press (k/gen-on-keypress keys-atom)
                      :on-key-release (k/gen-on-keyrelease keys-atom)}
                     600
-                    (fn [] (swap! state-atom #(move %)))))
+                    (fn [] (swap! state-atom #(move %)))
+                    #(when (:q @keys-atom) true)))
 
 ;(-main)

@@ -5,7 +5,7 @@
 (def dobreak true)
 (def dobreak false)
 
-(defn game-loop [update-fps loop-fn]
+(defn game-loop [update-fps loop-fn exit?-fn]
   (let [mutex-refresh (java.util.concurrent.Semaphore. 0)
         mutex-refreshing (java.util.concurrent.Semaphore. 1)
         timer (java.util.Timer.)
@@ -20,13 +20,13 @@
       (.acquire mutex-refreshing)
       (loop-fn)
       (.release mutex-refreshing)
-      (when-not dobreak (recur)))))
+      (when-not (exit?-fn) (recur)))))
 
 (defmacro with-applet [name & body]
   `(binding [quil.dynamics/*applet* ~name]
     (do ~@body)))
 
-(defn run-sketch [sketch-params key-fns update-fps loop-fn]
+(defn run-sketch [sketch-params key-fns update-fps loop-fn exit?-fn]
   (let [{:keys [title setup draw size]} sketch-params
         {:keys [on-key-press on-key-release]} key-fns
         mysketch (applet/applet
@@ -42,7 +42,7 @@
        (keyReleased [this event] (on-key-release event))
        (keyTyped [this event] nil)))
     (with-applet mysketch
-      (game-loop update-fps loop-fn))))
+      (game-loop update-fps loop-fn exit?-fn))))
 
 ;(-main)
 

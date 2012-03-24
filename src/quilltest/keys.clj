@@ -8,12 +8,14 @@
   {:w 87
    :a 65
    :s 83
-   :d 68})
+   :d 68
+   :q 81})
 
 (def int->key
   (set/map-invert key->int))
 
 (defn int-key-code [^java.awt.event.KeyEvent event]
+;  (println event)
   (.getKeyCode event))
 
 (defn gen-on-keypress
@@ -36,4 +38,7 @@
     (swap!
      keys-atom
      (fn [keys]
-       (disj keys (int->key (int-key-code event)))))))
+       (let [new (disj keys (int->key (int-key-code event)))]
+         (if (nil? new)
+           #{}
+           new))))))
