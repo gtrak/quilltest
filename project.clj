@@ -4,5 +4,5 @@
                  [quil/quil "1.0.0-SNAPSHOT"]]
 
   :main quilltest.balls
-
+  :jvm-opts ["-server"] 
   :warn-on-reflection true)
