@@ -72,20 +72,37 @@
   [r1 r2]
   (with-math
     (let [[x1 x2] [(:position r1) (:position r2)]
+;;          t (println x1 x2)
+          ;; vectors
           normal (normalize (- x1 x2))
-          tangent (->Vector2 (:y normal) (- 0 (:x normal)))
+;;          t (println "normal:" normal)      
+          tangent (->Vector2 (- 0 (:y normal)) (:x normal))
+;;          t (println "tangent:" tangent)          
           {m1 :mass v1 :velocity} r1
           {m2 :mass v2 :velocity} r2
           M (+ m1 m2)
-          [v1n v1t] [(scalar* normal (* v1 normal))
-                     (scalar* tangent (* v1 tangent))]
-          [v2n v2t] [(scalar* normal (* v2 normal))
+          inv-M (/ 1 M)
+;;          t (println 1)          
+          ;; scalars
+          [v1n v2n] [(* v1 normal)
+                     (* v2 normal)]
+;;          t (println "v1n v2n:" v1n v2n)
+          ;; vectors
+          [v1t v2t] [(scalar* tangent (* v1 tangent))
                      (scalar* tangent (* v2 tangent))]
-          [v1n_length v2n_length] [(norm v1n) (norm v2n)]
-          v1 (scalar+ (+ v1t (scalar* normal (* (/ (- m1 m2) M) v1n_length)))
-                      (* 2 (/ m2 M) v2n_length))
-          v2 (scalar+ (+ v1t (scalar* normal (* (/ (- m1 m2) M) v2n_length)))
-                      (* 2 (/ m1 M) v1n_length))
+;;          t (println "vtn v2t:" v1t v2t)
+          v1n-prime (* inv-M (+
+                              (* v1n (- m1 m2))
+                              (* 2 m2 v2n)))
+          v2n-prime (* inv-M (+
+                              (* v2n (- m2 m1))
+                              (* 2 m1 v1n)))
+;;          t (println 1)          
+          ;; tangential components do not change
+          [v1 v2] [(+ (scalar* normal v1n-prime) v1t)
+                   (+ (scalar* normal v2n-prime) v2t)]
           body1 (->RigidBody m1 x1 v1)
           body2 (->RigidBody m2 x2 v2)]
+;;      (println r1 body1)
       [body1 body2])))
+

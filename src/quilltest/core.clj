@@ -50,7 +50,7 @@
     (with-applet mysketch
       (game-loop update-fps loop-fn exit?-fn))))
 
-;(-main)
+
 
 
 
