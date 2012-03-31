@@ -12,7 +12,7 @@
 (def params
   {:size [800 600]
    :fps 61
-   :update-fps 200})
+   :update-fps 500})
 
 (def state-atom (atom [
                        {:pos [101 101]
