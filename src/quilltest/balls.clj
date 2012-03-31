@@ -12,29 +12,19 @@
 (def params
   {:size [800 600]
    :fps 61
-   :update-fps 500})
+   :update-fps 500
+   :balls 60})
 
-(def state-atom (atom [
-                       {:pos [101 101]
-                          :velocity [-0.5 -0.5]
-                          :id 1}
-                       {:pos [300 100]
-                          :velocity [0.5 0.5]
-                          :id 2}
-                       {:pos [200 100]
-                          :velocity [0.5 0.5]
-                          :id 3}
-                       {:pos [150 100]
-                          :velocity [0.5 0.5]
-                          :id 4}
-                       {:pos [400 150]
-                        :velocity [0.5 0.5]
-                        :id 5}
-                       {:pos [100 150]
-                        :velocity [0.5 0.5]
-                        :id 6}
-                       
-                       ]))
+(def state-atom
+  (letfn [(px []
+            [(rand-int (first (:size params)))
+             (rand-int (second (:size params)))])]
+      (atom
+       (map (fn [id]
+              {:pos (px)
+               :velocity [0.5 0.5]
+               :id id})
+            (range (:balls params))))))
 
 (def scene-graph
   (let [guy
