@@ -72,7 +72,6 @@
   [r1 r2]
   (with-math
     (let [[x1 x2] [(:position r1) (:position r2)]
-;;          t (println x1 x2)
           ;; vectors
           normal (normalize (- x1 x2))
 ;;          t (println "normal:" normal)      
