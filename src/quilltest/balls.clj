@@ -1,17 +1,18 @@
 (ns quilltest.balls
-  (:require [quilltest.core :as qcore]
-            [quilltest.keys :as k]
-            [quilltest.scene :as scene]
-            [quilltest.physics :as p]
+  (:require [clojure.pprint :as pprint]
             [clojure.set :as set]
-            [clojure.pprint :as pprint])
-  (:require [quil.core :as q])
+            [quil.core :as q]
+            [quilltest.collision :as collision]
+            [quilltest.core :as qcore]
+            [quilltest.keys :as k]
+            [quilltest.physics :as p]
+            [quilltest.scene :as scene])
   (:gen-class))
 
 ;(-main)
 (def params
   {:size [800 600]
-   :fps 61
+   :fps 15
    :update-fps 500
    :balls 60})
 
@@ -22,17 +23,16 @@
       (atom
        (map (fn [id]
               {:pos (px)
-               :velocity [0.5 0.5]
+               :velocity [0.01 0.01]
                :id id})
             (range (:balls params))))))
 
-(def scene-graph
-  (let [guy
-        (scene/->GraphNode
-         []
-         (fn [[x y]]
-           (q/ellipse x y 20 20)))]
-    guy))
+(defn scene-graph-node
+  []
+  (scene/->GraphNode
+   []
+   (fn [[x y]]
+     (q/ellipse x y 20 20))))
 
 (def keys-atom (atom #{}))
 
@@ -40,8 +40,9 @@
   (or (and (> pos max-pos) (pos? vel))
       (and (< pos 0) (neg? vel))))
 
-(defn bounds-check [state]
-  ;(println state)
+(defn bounds-check
+  "Prevent balls from flying out of the field"
+  [state]
   (let [[max-x max-y] (:size params)
         [vx vy] (:velocity state)
         [x y] (:pos state)
@@ -49,12 +50,12 @@
         vy (if (going-out? y max-y vy) (- vy) vy)]
     [vx vy]))
 
-(def scale 0.000001)
-(def a 0.001)
+(def time-scale 0.00001)
+(def ACCEL 0.000001)
 
 (defn accelerate [t vx vy]
-  ;; v = a*t + v0
-  (let [step (* a t)
+  "v = a*t + v0; Allows overriding of acceleration via keypress"
+  (let [step (* ACCEL t)
         pressed @keys-atom
         vx (if (pressed :a) (- vx step) vx)
         vx (if (pressed :d) (+ vx step) vx)
@@ -62,12 +63,12 @@
         vy (if (pressed :s) (+ vy step) vy)]
     [vx vy]))
 
-(defn move [guy ticks]
-  (let [t (* scale ticks)
-        [vx vy] (bounds-check guy)
+(defn move [node ticks]
+  (let [t (* time-scale ticks)
+        [vx vy] (bounds-check node)
         [vx vy] (accelerate t vx vy)
         [vxt vyt] [(* vx t) (* vy t)]
-        [x y] (:pos guy)]
+        [x y] (:pos node)]
     {;; x = vt + x0
      :pos [(+ x vxt) (+ y vyt)]
      :velocity [vx vy]}))
@@ -81,77 +82,37 @@
   (q/background 100)
   (let [s @state-atom]
     (q/stroke 0)
-    (dorun (map #(scene/draw scene-graph (:pos %)) s))))
+    (dorun (map #(scene/draw (scene-graph-node) (:pos %)) s))))
 
-(defn guy->rigidbody [guy]
-  (let [{:keys [pos velocity]} guy]
+(defn node->rigidbody [node]
+  (let [{:keys [pos velocity]} node]
     (p/->RigidBody
      1
      (p/->Vector2 (first pos) (second pos))
      (p/->Vector2 (first velocity) (second velocity)))))
 
-(defn rigidbody->guy [rigidbody]
-;  (println rigidbody)
+(defn rigidbody->node [rigidbody]
   {:pos (let [pos (:position rigidbody)]
           [(:x pos) (:y pos)])
    :velocity (let [v (:velocity rigidbody)]
                [(:x v) (:y v)])})
 
-
-(defn check-collisions
-  "create a map of colliding guys"
-  [guys]
-  (let [combinations (for [x guys
-                           y guys
-                           ;; note, this implies ref semantics, not
-                           ;; value, for equality, each game object
-                           ;; should be unique
-                           :when (not= x y)]
-                       [x y])
-        collided (filter (fn [[a b]]
-                           (p/colliding? (:rigid-body a)
-                                         (:rigid-body b)))
-                         combinations)]
-    (into {} collided)))
-
-(defn update-rigidbodies
-  [guys collided-pairs]
-  ;; iterate over game objects, checking to see
-  ;; if it's part of a collided pair, replacing it
-  ;; with the updated values if it is
-  ;; TODO: optimize, cache collided vals in a map
-  (map 
-   (fn [guy]
-     (if-let [guy2 (collided-pairs guy)]
-       (let [[rigidbody-a _] (p/collide (:rigid-body guy)
-                                        (:rigid-body guy2))
-             new-guy (assoc guy :rigid-body rigidbody-a)]
-         new-guy)
-       guy))
-   guys))
-
-(defn update-collisions [guys]
-  (let [collided-pairs (check-collisions guys)
-        updated (update-rigidbodies guys collided-pairs)]
-;    (println collided-pairs)
-    updated))
-
-(defn update-guys
-  "update the game state of the guys post-collision"
-  [guys]
+(defn update-nodes
+  "update the game state of the nodes post-collision"
+  [nodes]
   (map
-   (fn [guy]
-     ;; if there is any state coming from the old guy, add
+   (fn [node]
+     ;; if there is any state coming from the old node, add
      ;; it here
-     (let [new-state (rigidbody->guy (:rigid-body guy))]
-       (merge guy new-state))) guys))
+     (let [new-state (rigidbody->node (:rigid-body node))]
+       (merge node new-state))) nodes))
 
-(defn update [guys ticks]
+(defn update-position [nodes ticks]
   (let [;;add a rigid-body key
-        guys (map #(assoc % :rigid-body (guy->rigidbody %)) guys)
-        guys (update-collisions guys)
-        guys (update-guys guys)]
-    (map #(move % ticks) guys)))
+        nodes (map #(assoc % :rigid-body (node->rigidbody %)) nodes)
+        nodes (collision/update-collisions nodes)
+        nodes (update-nodes nodes)]
+    (map #(move % ticks) nodes)))
 
 (defn -main []
   (qcore/run-sketch {:title "Balls"
@@ -161,7 +122,7 @@
                     {:on-key-press (k/gen-on-keypress keys-atom)
                      :on-key-release (k/gen-on-keyrelease keys-atom)}
                     (:update-fps params)
-                    (fn [ticks] (swap! state-atom #(update % ticks)))
+                    (fn [ticks] (swap! state-atom #(update-position % ticks)))
                     #(when (:q @keys-atom) true)))
 
 ;;(-main)

@@ -2,13 +2,12 @@
   (:use quil.core)
   (:require [quil.applet :as applet]))
 
-(def dobreak true)
-(def dobreak false)
-
 (defn nanotime []
   (System/nanoTime))
 
-(defn game-loop [update-fps loop-fn exit?-fn]
+(defn game-loop
+  "based on a SO post impl for scheduling a multithreaded update loop"
+  [update-fps loop-fn exit?-fn]
   (let [mutex-refresh (java.util.concurrent.Semaphore. 0)
         mutex-refreshing (java.util.concurrent.Semaphore. 1)
         timer (java.util.Timer.)
@@ -28,18 +27,14 @@
         (when-not (exit?-fn)
           (recur new-time))))))
 
-(defmacro with-applet [name & body]
-  `(binding [quil.dynamics/*applet* ~name]
-    (do ~@body)))
-
 (defn run-sketch [sketch-params key-fns update-fps loop-fn exit?-fn]
   (let [{:keys [title setup draw size]} sketch-params
         {:keys [on-key-press on-key-release]} key-fns
         mysketch (applet/applet
-                :title title
-                :setup setup
-                :draw draw
-                :size size)]
+                     :title title
+                     :setup setup
+                     :draw draw
+                     :size size)]
     (Thread/sleep 5)
     (.addKeyListener
      mysketch
@@ -47,7 +42,7 @@
        (keyPressed [this event] (on-key-press event))
        (keyReleased [this event] (on-key-release event))
        (keyTyped [this event] nil)))
-    (with-applet mysketch
+    (applet/with-applet mysketch
       (game-loop update-fps loop-fn exit?-fn))))
 
 

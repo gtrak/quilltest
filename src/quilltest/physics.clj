@@ -2,7 +2,6 @@
 
 ;;; Simple functions to calculate physics interactions
 
-
 (defprotocol Mathy
   "A mathiness protocol"
   (plus [a b])
@@ -37,19 +36,19 @@
   (minus [a b] (let [new-x (- (:x a) (:x b))
                      new-y (- (:y a) (:y b))]
                  (->Vector2 new-x new-y)))
-  (dot [a b] (+ (* (:x a) (:x b)) (* (:y a) (:y b))))
+  (dot [a b] (+ (* (:x a) (:x b))
+                (* (:y a) (:y b))))
   (norm [this] (Math/sqrt (dot this this)))
   Vectory
   (normalize [this]
-    (let [magnitude (norm this)]      
+    (let [magnitude (norm this)]
       (scalar* this (/ 1 magnitude))))
   (scalar* [this a]
     (->Vector2 (* a (:x this)) (* a (:y this))))
   (scalar+ [this a]
     (->Vector2 (+ a (:x this)) (+ a (:y this)))))
 
-(defrecord RigidBody 
-    [mass position velocity])
+(defrecord RigidBody [mass position velocity])
 
 (defn approaching [r1 r2]
   (let [v1 (:velocity r1)
@@ -74,34 +73,33 @@
     (let [[x1 x2] [(:position r1) (:position r2)]
           ;; vectors
           normal (normalize (- x1 x2))
-;;          t (println "normal:" normal)      
+
           tangent (->Vector2 (- 0 (:y normal)) (:x normal))
-;;          t (println "tangent:" tangent)          
+
           {m1 :mass v1 :velocity} r1
           {m2 :mass v2 :velocity} r2
           M (+ m1 m2)
           inv-M (/ 1 M)
-;;          t (println 1)          
+
           ;; scalars
           [v1n v2n] [(* v1 normal)
                      (* v2 normal)]
-;;          t (println "v1n v2n:" v1n v2n)
+
           ;; vectors
           [v1t v2t] [(scalar* tangent (* v1 tangent))
                      (scalar* tangent (* v2 tangent))]
-;;          t (println "vtn v2t:" v1t v2t)
+
           v1n-prime (* inv-M (+
                               (* v1n (- m1 m2))
                               (* 2 m2 v2n)))
           v2n-prime (* inv-M (+
                               (* v2n (- m2 m1))
                               (* 2 m1 v1n)))
-;;          t (println 1)          
+
           ;; tangential components do not change
           [v1 v2] [(+ (scalar* normal v1n-prime) v1t)
                    (+ (scalar* normal v2n-prime) v2t)]
           body1 (->RigidBody m1 x1 v1)
           body2 (->RigidBody m2 x2 v2)]
-;;      (println r1 body1)
       [body1 body2])))
 
